@@ -1,52 +1,47 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
+#include <signal.h>
 #include <sys/socket.h>
+#include <unistd.h>
 #include <sys/un.h>
 
+#define MY_SOCK_PATH "/tmp/serverDatagram1"
+int sfd, cfd;
 
-#define SERVER_PATH     "/tmp/server"
-#define BUFFER_LENGTH    250
+void signalHandler(int sig){
+   printf("\nserver stop\n");
+   close(sfd);
+   close(cfd);
+   unlink(MY_SOCK_PATH);
+   exit(0);
+}
 
-int main()
-{
-   unlink(SERVER_PATH); //czyscimy na wypadek nieprawidlowego zamkniecia serwera
-   
-   int    serverSocket;
-   char   buffer[BUFFER_LENGTH]; //tutaj bedzie to co dostaniemy od klienta
-   struct sockaddr_un serverAddressStruct, clientAddressStruct; //potrzebna struktura
-
-
-   serverSocket = socket(AF_UNIX, SOCK_DGRAM, 0); 
-   if (serverSocket == -1)
-   {
-      perror("socket() failed");
+int main(){
+   signal(SIGINT, signalHandler);
+   struct sockaddr_un server_addr, client_addr;
+   sfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+   int client_addr_size = sizeof(client_addr);
+   if(sfd == -1){
+      perror("socket");
       return -1;
    }
+   memset(&server_addr, 0, sizeof(server_addr));
+   server_addr.sun_family = AF_UNIX;
+   strcpy(server_addr.sun_path, MY_SOCK_PATH);
 
-   memset(&serverAddressStruct, 0, sizeof(serverAddressStruct)); // czyscimy strukture
-   serverAddressStruct.sun_family = AF_UNIX; // man bind
-   strcpy(serverAddressStruct.sun_path, SERVER_PATH); // man bind
-
-   if(bind(serverSocket, (struct sockaddr *)&serverAddressStruct, sizeof(serverAddressStruct)) == -1)
-   {
-      perror("bind() failed");
+   if(bind(sfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1){
+      perror("bind");
       return -1;
    }
-
+   char fromClient[50];
    while(1){
-
-       socklen_t len = sizeof clientAddressStruct;
-      if (recvfrom(serverSocket, buffer, sizeof(buffer), 0, (struct sockaddr*)  &clientAddressStruct, &len ) == -1)
-      {
-         perror("recvfrom() failed");
-         break;
-      } 
-      printf("%s\n",buffer);
-   }
+      if(recvfrom(sfd,fromClient, 50, 0, (struct sockaddr *)&client_addr,
+                  &client_addr_size) == -1){
+         perror("recvfrom");
+         return -1;
+      }
+      printf("from client: %s\n",fromClient);
    
-
-   close(serverSocket);
-   unlink(SERVER_PATH);
-   return 0;
+   }
 }

@@ -1,47 +1,31 @@
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
+#include <signal.h>
+#include <netinet/ip.h>
 #include <sys/socket.h>
+#include <unistd.h>
 #include <sys/un.h>
 
-#define SERVER_PATH "/tmp/server"
-#define CLIENT_PATH "/tmp/client"
 
-int main(int argc, char *argv[])
-{
-    unlink(CLIENT_PATH);
-   int    serverSocket, clientSocket;
-   struct sockaddr_un serverAddress, clientAddress;
+#define MY_SOCK_PATH "/tmp/serverDatagram1"
 
-   clientSocket = socket(AF_UNIX, SOCK_DGRAM, 0);
-   if (clientSocket == -1)
-   {
-      perror("socket() failed");
+int main(int argc, char * argv[]){
+   struct sockaddr_un server_addr;
+   int sfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+   
+   if(sfd == -1){
+      perror("socket");
       return -1;
    }
+   memset(&server_addr, 0, sizeof(server_addr));
+   server_addr.sun_family = AF_UNIX;
+   strcpy(server_addr.sun_path, MY_SOCK_PATH);
 
-   memset(&serverAddress, 0, sizeof(serverAddress)); //czyscimy strukture, jest w man bind
-   memset(&clientAddress, 0, sizeof(clientAddress)); //czyscimy strukture, jest w man bind
-
-   serverAddress.sun_family = AF_UNIX; //man bind
-   strcpy(serverAddress.sun_path, SERVER_PATH); //man bind
-
-   clientAddress.sun_family = AF_UNIX; // man bind
-   strcpy(clientAddress.sun_path, CLIENT_PATH); // man bind
-
-    if(bind(clientSocket, (struct sockaddr *)&clientAddress, sizeof(clientAddress)) == -1)
-   {
-      perror("bind() failed");
+   if(sendto(sfd, argv[1], 50, 0, (struct sockaddr *) &server_addr,
+                  sizeof(server_addr)) == -1){
+      perror("sendto");
       return -1;
    }
-
-   if(sendto(clientSocket, argv[1], 100, 0, (struct sockaddr *)&serverAddress,sizeof(serverAddress)) == -1)
-   {
-      perror("sendto() failed");
-      return -1;
-   }
-
-   close(serverSocket);
    return 0;
 }
