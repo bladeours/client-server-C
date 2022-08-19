@@ -1,38 +1,31 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
+#include <signal.h>
 #include <sys/msg.h>
-#include <string.h>
 
-/*
- 	man msgget
-	man msgrcv <- prosty przyklad
-*/
+int msqid;
+           struct message {
+               long type;
+               char text[50];
+           } msg;
 
 
-struct Message{
-	long type;
-	char text[20];
-}message;
-
+void signalHandler(int sig){
+	printf("server stop\n");
+	msgctl(msqid, IPC_RMID, NULL);
+	exit(0);
+}
 
 int main(){
-
-	while(1){
-		int msgid = msgget((key_t)69,0666|IPC_CREAT);
-		if(msgid == -1){
-			printf("msgid error\n");
-			return -1;
-		}
-		if(msgrcv(msgid,(void *)&message,20,0,0) == -1){
-			printf("msgrcv error\n");
-			return -1;
-		}
-
-		printf("%s\n",message.text);
+	signal(SIGINT, signalHandler);
+	msqid = msgget((key_t)69, 0600|IPC_CREAT);
+	if(msqid == -1){
+		perror("msgget");
 	}
-	
-
-	return 0;
+	while(1){
+		if(msgrcv(msqid, (void *) &msg, sizeof(msg.text), 0, 0) == -1){
+			perror("msgrcv");
+		}
+		printf("from client: %s\n",msg.text);
+	}
 }

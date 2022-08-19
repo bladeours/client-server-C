@@ -1,27 +1,38 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 
-/*q
-	man 3 mkfifo
-	man 2 open
-	man 2 write
-*/
+int file;
+
+void signalHandler(int sig){
+	printf("server stop\n");
+	close(file);
+	exit(0);
+}
 
 int main(){
-	//tworzymy kolejke (plik) "fifo"
-	mkfifo("fifo",0600);
-		
+	signal(SIGINT, signalHandler);
+	if(mkfifo("fifo",0600|O_CREAT) == -1){
+		perror("mkfifo");
+	}
+	char fromClient[50];
 	while(1){
-		//otwieramy go
-		int file = open("fifo",O_RDONLY);
-		char fromClient[20];
-		read(file, fromClient, 20);
+
+		file = open("fifo",O_RDONLY);
+		if(file == -1){
+			perror("open");
+		}
+		if(read(file, fromClient, 50) == -1){
+			perror("read");
+		}
 		printf("from client: %s\n",fromClient);
 		close(file);
+		sleep(1);
 	}
-	return 0;
+
+	
 }

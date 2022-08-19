@@ -1,44 +1,31 @@
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
+#include <signal.h>
 #include <netinet/ip.h>
-/*
-   man 7 ip - pokazana struktura sockaddr_in
-   man sendmmsg pokazany htonl(INADDR_LOOPBACK)
-   man bind
-*/
-int main(int argc, char *argv[])
-{
+#include <sys/socket.h>
+#include <unistd.h>
 
-   int    serverSocket;
-   struct sockaddr_in serverAddress;
-
-   serverSocket = socket(AF_INET, SOCK_DGRAM, 0);
-   if (serverSocket == -1)
-   {
-      perror("socket() failed");
+int main(int argc, char * argv[]){
+   struct sockaddr_in server_addr;
+   int sfd = socket(AF_INET, SOCK_STREAM, 0);
+   if(sfd == -1){
+      perror("socket");
+      return -1;
+   }
+   server_addr.sin_family = AF_INET;
+        server_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        server_addr.sin_port = htons(1234);
+   
+   if(connect(sfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1){
+      perror("connect");
+      return -1;
+   }
+   if(send(sfd, argv[1], 50, 0) == -1){
+      perror("send");
       return -1;
    }
 
-   serverAddress.sin_family = AF_INET; 
-   serverAddress.sin_port = 8080;
-   serverAddress.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-   if(connect(serverSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
-   {
-      perror("connect() failed");
-      return -1;
-   }
-
-   if(send(serverSocket, argv[1], 100, 0) == -1)
-   {
-      perror("send() failed");
-      return -1;
-   }
-
-   close(serverSocket);
+   close(sfd);
    return 0;
 }
